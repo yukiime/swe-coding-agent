@@ -1,0 +1,17 @@
+# secrets & env
+.env
+.venv/
+
+# run artifacts (trajectories, cost ledger, harness output)
+logs/
+*.jsonl
+
+# python
+__pycache__/
+*.pyc
+.DS_Store
+
+PLAN.md
+CLAUDE.md
+PROMPTS.md
+README.md
