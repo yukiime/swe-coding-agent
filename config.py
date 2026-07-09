@@ -1,21 +1,39 @@
 # 设计说明：全部可调参数集中于此，其他模块禁止出现魔法数字——Phase 5 换模型对比时
-# 只改这个文件。价格按 cache-miss 单价保守计费：宁可高估成本提前熔断，不可少算超支。
+# 只改这个文件。供应商以"档案"共存，切换=改 ACTIVE_PROFILE 一行(或设环境变量
+# SWE_PROFILE)，价格随档案走：记账/熔断依赖单价，换端点忘改价格会把账记错。
+# 价格按 cache-miss 单价保守计费：宁可高估成本提前熔断，不可少算超支。
+import os
 from pathlib import Path
 
 ROOT = Path(__file__).parent
 
-# --- LLM ---
-MODEL = "deepseek-chat"
-BASE_URL = "https://api.deepseek.com"
-API_KEY_ENV = "DEEPSEEK_API_KEY"
+# --- LLM 供应商档案（任何 OpenAI 兼容端点都能当一个档案）---
+PROFILES = {
+    "deepseek": dict(model="deepseek-chat", base_url="https://api.deepseek.com",
+                     api_key_env="DEEPSEEK_API_KEY",
+                     price_in_per_m=0.28, price_out_per_m=0.42),
+    # 中转商：base_url/模型名/单价按服务商页面填(单价务必填，记账靠它)，key放.env
+    "relay": dict(model="deepseek-chat", base_url="https://REPLACE-ME.example.com/v1",
+                  api_key_env="RELAY_API_KEY",
+                  price_in_per_m=None, price_out_per_m=None),
+    # 其他示例: ollama本地 base_url="http://localhost:11434/v1" (价格填0)
+    #           gemini    base_url="https://generativelanguage.googleapis.com/v1beta/openai/"
+}
+ACTIVE_PROFILE = os.environ.get("SWE_PROFILE", "deepseek")
+_p = PROFILES[ACTIVE_PROFILE]
+MODEL = _p["model"]
+BASE_URL = _p["base_url"]
+API_KEY_ENV = _p["api_key_env"]
+PRICE_IN_PER_M = _p["price_in_per_m"]
+PRICE_OUT_PER_M = _p["price_out_per_m"]
+assert PRICE_IN_PER_M is not None and PRICE_OUT_PER_M is not None, \
+    f"档案 {ACTIVE_PROFILE} 未填单价, 记账会失真, 拒绝启动"
+
+# --- LLM 通用参数 ---
 TEMPERATURE = 0.0
 MAX_COMPLETION_TOKENS = 4096
 LLM_RETRIES = 5             # 指数退避: 第n次失败后睡 2^n 秒
 LLM_TIMEOUT_S = 120
-
-# 单价 USD / 1M tokens（deepseek-chat；跑批前对照 platform.deepseek.com 价目表核对）
-PRICE_IN_PER_M = 0.28
-PRICE_OUT_PER_M = 0.42
 
 # --- 成本熔断 ---
 COST_LIMIT_INSTANCE_USD = 0.40
