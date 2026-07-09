@@ -70,6 +70,10 @@ COST_LIMIT_TOTAL_USD = 40.0
 # --- 主循环 ---
 MAX_TURNS = 20
 
+# --- 批量 ---
+BATCH_CONCURRENCY = 3       # 同时在跑的instance数（每个=1个run_one子进程+1个容器）
+BATCH_TIMEOUT_S = 25 * 60   # 单例墙钟上限，超时对进程组SIGTERM→SIGKILL并清理容器
+
 # --- 上下文管理 ---
 CTX_KEEP_TURNS = 10         # 滚动窗口保留的最近 assistant 轮数（system+问题原文永远保留）
 TOOL_OUT_MAX_CHARS = 4000   # 单条工具输出超过此长度则截中间留头尾

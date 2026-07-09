@@ -1,6 +1,7 @@
 # 设计说明：唯一接触LLM网络的模块，做三件事：带指数退避的调用、token→美元记账并
 # 原子落盘（进程重启不清零）、两级成本熔断（单例$0.40/全项目$40）超限抛异常。
 # MockLLM 与 LLM 同接口，回放写死的剧本，让四工具+主循环可以零API费联调。
+import fcntl
 import json
 import os
 import time
@@ -19,24 +20,36 @@ RETRIABLE = (RateLimitError, APITimeoutError, APIConnectionError, InternalServer
 
 
 class CostLedger:
-    """logs/cost.json: {"total_usd", "instances": {iid: {usd, prompt_tokens, completion_tokens, calls}}}"""
+    """logs/cost.json: {"total_usd", "instances": {iid: {usd, prompt_tokens, completion_tokens, calls}}}
+
+    批量并发时多个run_one进程共写同一账本：记账在文件独占锁内"重读→累加→原子写回"，
+    否则各进程的内存副本互相覆盖会把账记少——记少=总额熔断可能被绕过。"""
 
     def __init__(self, path=config.COST_PATH):
         self.path = path
-        self.data = (json.loads(path.read_text()) if path.exists()
-                     else {"total_usd": 0.0, "instances": {}})
+        self.data = self._load()
+
+    def _load(self) -> dict:
+        return (json.loads(self.path.read_text()) if self.path.exists()
+                else {"total_usd": 0.0, "instances": {}})
 
     def add(self, iid: str, prompt_tokens: int, completion_tokens: int) -> float:
         usd = (prompt_tokens * config.PRICE_IN_PER_M
                + completion_tokens * config.PRICE_OUT_PER_M) / 1e6
-        inst = self.data["instances"].setdefault(
-            iid, {"usd": 0.0, "prompt_tokens": 0, "completion_tokens": 0, "calls": 0})
-        inst["usd"] += usd
-        inst["prompt_tokens"] += prompt_tokens
-        inst["completion_tokens"] += completion_tokens
-        inst["calls"] += 1
-        self.data["total_usd"] += usd
-        self._flush()  # 先记账再判限：熔断时这笔钱已经花了，必须入账
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        with open(self.path.with_suffix(".lock"), "w") as lockf:
+            fcntl.flock(lockf, fcntl.LOCK_EX)
+            self.data = self._load()  # 锁内重读：别的进程可能刚记过账，内存副本已过期
+            inst = self.data["instances"].setdefault(
+                iid, {"usd": 0.0, "prompt_tokens": 0, "completion_tokens": 0, "calls": 0})
+            inst["usd"] += usd
+            inst["prompt_tokens"] += prompt_tokens
+            inst["completion_tokens"] += completion_tokens
+            inst["calls"] += 1
+            self.data["total_usd"] += usd
+            tmp = self.path.with_suffix(".tmp")
+            tmp.write_text(json.dumps(self.data, indent=2))
+            tmp.replace(self.path)  # 先记账再判限：熔断时这笔钱已经花了，必须入账
         if inst["usd"] > config.COST_LIMIT_INSTANCE_USD:
             raise CostLimitExceeded(
                 f"instance {iid} spent ${inst['usd']:.4f} > ${config.COST_LIMIT_INSTANCE_USD}")
@@ -44,12 +57,6 @@ class CostLedger:
             raise CostLimitExceeded(
                 f"project total ${self.data['total_usd']:.2f} > ${config.COST_LIMIT_TOTAL_USD}")
         return usd
-
-    def _flush(self) -> None:
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        tmp = self.path.with_suffix(".tmp")
-        tmp.write_text(json.dumps(self.data, indent=2))
-        tmp.replace(self.path)
 
 
 class LLM:

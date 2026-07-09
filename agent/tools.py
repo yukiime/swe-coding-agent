@@ -59,8 +59,12 @@ def image_of(instance_id: str) -> str:
     return config.IMAGE_PREFIX + instance_id.replace("__", "_1776_") + ":latest"
 
 
+def container_name(instance_id: str) -> str:
+    return f"swe-agent.{instance_id}"
+
+
 def start_container(instance_id: str) -> Container:
-    name = f"swe-agent.{instance_id}"
+    name = container_name(instance_id)
     subprocess.run(["docker", "rm", "-f", name], capture_output=True)  # 清理上次残留
     subprocess.run(["docker", "run", "-d", "--name", name, "--platform", "linux/amd64",
                     image_of(instance_id), "tail", "-f", "/dev/null"],
