@@ -18,8 +18,36 @@ PROFILES = {
                   price_in_per_m=None, price_out_per_m=None),
     # 其他示例: ollama本地 base_url="http://localhost:11434/v1" (价格填0)
     #           gemini    base_url="https://generativelanguage.googleapis.com/v1beta/openai/"
+    # 阿里 DashScope 工作区端点(多厂商聚合: qwen/deepseek/glm/kimi 同一key全覆盖,
+    # Phase5 对比可直接换 model)。国内网直连, 无需热点。免费额度期内真实花费=0,
+    # 下面单价仅作名义记账+熔断兜底; 真正的约束是token额度, 盯 cost.json 累计token。
+    # 省额度可换 qwen3.6-flash; 更强可换 qwen3.7-max。
+    "ali": dict(model="qwen3.7-plus",
+                base_url="https://ws-xrrutp9e08h229by.cn-beijing.maas.aliyuncs.com/compatible-mode/v1",
+                api_key_env="ALI_API_KEY",
+                price_in_per_m=0.10, price_out_per_m=0.20),
+    # OpenRouter 上的腾讯 HY3(免费变体, 按token免费=0/0)。tool calling 已实测✓, 256K上下文。
+    # 约束是"每日请求数": 账户未充$10=50次/天(基本跑不动批量), 充>=$10=1000次/天。
+    # 当前账户 is_free_tier=True(50/天) → 仅作备用, 别设默认跑批量。
+    "hy3": dict(model="tencent/hy3:free", base_url="https://openrouter.ai/api/v1",
+                api_key_env="OPENROUTER_API_KEY",
+                price_in_per_m=0.0, price_out_per_m=0.0),
+    # NVIDIA 托管的 deepseek-v4-flash(免费)。tool calling ✓, 但实测约50%概率返回503
+    # (免费层容量throttle) → 依赖链会因重试耗尽而中途失败, 会污染解决率数字。
+    # 只适合单例调试/Phase5 DeepSeek系对比取样, 不可用于无人值守批量。
+    "nvidia": dict(model="deepseek-ai/deepseek-v4-flash",
+                   base_url="https://integrate.api.nvidia.com/v1",
+                   api_key_env="NVAPI_KEY",
+                   price_in_per_m=0.0, price_out_per_m=0.0),
+    # 硅基流动(SiliconFlow, 国内聚合)。付费·按token, key SILICON_KEY, 国内wifi直连。
+    # 实测 tool calling✓、可靠性 8/8(远好于nvidia免费层的~50%) → 适合无人值守批量, 当前主力。
+    # 这是真花钱: 美元熔断在此才真正护钱包, 单价务必准。DeepSeek-V4-Flash 官价 ¥1/¥2 每M
+    "silicon": dict(model="deepseek-ai/DeepSeek-V4-Flash",
+                    base_url="https://api.siliconflow.cn/v1",
+                    api_key_env="SILICON_KEY",
+                    price_in_per_m=0.14, price_out_per_m=0.28),
 }
-ACTIVE_PROFILE = os.environ.get("SWE_PROFILE", "deepseek")
+ACTIVE_PROFILE = os.environ.get("SWE_PROFILE", "silicon")
 _p = PROFILES[ACTIVE_PROFILE]
 MODEL = _p["model"]
 BASE_URL = _p["base_url"]
