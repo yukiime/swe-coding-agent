@@ -11,9 +11,10 @@ __pycache__/
 *.pyc
 .DS_Store
 
-# 我认为用户不需要提交计划、提示和实验结果等文件
+# documentation
 PLAN.md
 CLAUDE.md
 PROMPTS.md
-README.md
+NOTES.md
 experiments.md
+analysis/review_guide.md
