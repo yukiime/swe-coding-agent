@@ -69,6 +69,9 @@ COST_LIMIT_TOTAL_USD = 40.0
 
 # --- 主循环 ---
 MAX_TURNS = 20
+WATCHDOG_NO_EDIT_TURNS = 4  # 连续N轮无edit_file调用，下一轮起在轮数横幅里注入硬提醒
+FORCE_FIRST_EDIT_TURN = 9   # 军规=第8轮前动手；到此轮仍0次edit则tool_choice机械强制
+                            # （round1冒烟实证：V4-Flash对纯文字提醒完全无视，16次nudge零转化）
 
 # --- 批量 ---
 BATCH_CONCURRENCY = 3       # 同时在跑的instance数（每个=1个run_one子进程+1个容器）

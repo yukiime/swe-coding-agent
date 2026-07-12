@@ -18,7 +18,8 @@ TOOLS = [
     {"type": "function", "function": {
         "name": "edit_file",
         "description": "Replace an exact string in a file. old_str must appear exactly once; "
-                       "copy it character-for-character from read_file output (without line numbers).",
+                       "copy it character-for-character from read_file output (without line numbers). "
+                       "To create a NEW file: pass old_str=\"\" and the full content as new_str.",
         "parameters": {"type": "object", "properties": {
             "path": {"type": "string"},
             "old_str": {"type": "string"},
@@ -92,10 +93,19 @@ def read_file(ctr: Container, path: str, start_line: int | None = None,
 
 
 def edit_file(ctr: Container, path: str, old_str: str, new_str: str) -> str:
+    if old_str == new_str:  # 被强制编辑却无修复假设的模型会提交no-op“假装编辑”，[ok]是撒谎
+        return "[error] new_str is identical to old_str — nothing would change. Provide a real fix."
     p = _norm(path)
     code, content, err = ctr.exec(f"cat {shlex.quote(p)}")
-    if code != 0:
-        return f"[error] cannot read {path}: {err.strip()}"
+    if code != 0:  # 文件不存在：old_str为空=创建新文件（gold偶尔要求新增模块，如astropy-13398）
+        if old_str:
+            return (f"[error] cannot read {path}: {err.strip()} "
+                    '(to create a new file, call edit_file with old_str="")')
+        code, _, err = ctr.exec(
+            f"mkdir -p {shlex.quote(p.rsplit('/', 1)[0])} && cat > {shlex.quote(p)}", stdin=new_str)
+        return f"[error] create failed: {err.strip()}" if code else f"[ok] created {path}"
+    if not old_str:
+        return f"[error] {path} already exists; provide a unique old_str to edit it."
     n = content.count(old_str)
     if n == 0:
         return ("[error] old_str not found in file. Re-read the file and copy the exact "
@@ -109,8 +119,10 @@ def edit_file(ctr: Container, path: str, old_str: str, new_str: str) -> str:
 
 
 def run_tests(ctr: Container, command: str) -> str:
+    # timeout(1)只能exec外部程序，包不住`cd /testbed && ...`这类shell写法（基线50例中
+    # 25例踩到exit=127）——套一层bash -c让整串命令在子shell里跑，conda环境经env继承。
     code, out, err = ctr.exec(
-        f"{config.CONDA_ACTIVATE} && timeout {config.RUN_TESTS_TIMEOUT_S} {command}",
+        f"{config.CONDA_ACTIVATE} && timeout {config.RUN_TESTS_TIMEOUT_S} bash -c {shlex.quote(command)}",
         timeout=config.RUN_TESTS_TIMEOUT_S)
     note = " (124=timeout)" if code == 124 else ""
     return f"[exit={code}{note}]\n{out}{err}"

@@ -66,14 +66,16 @@ class LLM:
         self.client = OpenAI(api_key=os.environ[config.API_KEY_ENV],
                              base_url=config.BASE_URL, timeout=config.LLM_TIMEOUT_S)
 
-    def chat(self, messages: list, tools: list) -> tuple[dict, dict]:
-        """返回 (标准化的assistant消息dict, usage dict)。重试仅针对网络/限流类错误。"""
+    def chat(self, messages: list, tools: list, tool_choice=None) -> tuple[dict, dict]:
+        """返回 (标准化的assistant消息dict, usage dict)。重试仅针对网络/限流类错误。
+        tool_choice: 透传OpenAI参数，如强制指定函数（行动强制的机械兜底）。"""
+        extra = {"tool_choice": tool_choice} if tool_choice else {}
         for attempt in range(config.LLM_RETRIES):
             try:
                 resp = self.client.chat.completions.create(
                     model=config.MODEL, messages=messages, tools=tools,
                     temperature=config.TEMPERATURE,
-                    max_tokens=config.MAX_COMPLETION_TOKENS)
+                    max_tokens=config.MAX_COMPLETION_TOKENS, **extra)
                 break
             except RETRIABLE:
                 if attempt == config.LLM_RETRIES - 1:
@@ -99,7 +101,7 @@ class MockLLM:
         self.script = list(script)
         self.i = 0
 
-    def chat(self, messages: list, tools: list) -> tuple[dict, dict]:
+    def chat(self, messages: list, tools: list, tool_choice=None) -> tuple[dict, dict]:
         content, calls = self.script[self.i]
         self.i += 1
         msg: dict = {"role": "assistant", "content": content}
