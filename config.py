@@ -79,6 +79,8 @@ BATCH_TIMEOUT_S = 25 * 60   # 单例墙钟上限，超时对进程组SIGTERM→S
 
 # --- 上下文管理 ---
 CTX_KEEP_TURNS = 10         # 滚动窗口保留的最近 assistant 轮数（system+问题原文永远保留）
+CTX_MEMO_NOTE_CHARS = 1200  # 备忘录中每轮方案陈述的保留上限（模型自己的话，通常远短于此）
+CTX_MEMO_RESULT_CHARS = 120 # 备忘录中每条工具结果只留首行的上限（[ok]/[error]/[exit=N]在首行）
 TOOL_OUT_MAX_CHARS = 4000   # 单条工具输出超过此长度则截中间留头尾
 TOOL_OUT_HEAD = 2800
 TOOL_OUT_TAIL = 1000
