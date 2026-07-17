@@ -23,7 +23,7 @@ PROFILES = {
     # 下面单价仅作名义记账+熔断兜底; 真正的约束是token额度, 盯 cost.json 累计token。
     # 省额度可换 qwen3.6-flash; 更强可换 qwen3.7-max。
     "ali": dict(model="qwen3.7-plus",
-                base_url="https://ws-xrrutp9e08h229by.cn-beijing.maas.aliyuncs.com/compatible-mode/v1",
+                base_url=os.environ.get("ALI_BASE_URL", ""),  # 工作区专属端点属敏感信息,从.env读
                 api_key_env="ALI_API_KEY",
                 price_in_per_m=0.10, price_out_per_m=0.20),
     # OpenRouter 上的腾讯 HY3(免费变体, 按token免费=0/0)。tool calling 已实测✓, 256K上下文。
