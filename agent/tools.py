@@ -130,11 +130,15 @@ def run_tests(ctr: Container, command: str) -> str:
 
 def code_search(ctr: Container, pattern: str, path: str = "") -> str:
     where = _norm(path) if path else config.TESTBED
-    cmd = (f"grep -rn -E --include='*.py' {shlex.quote(pattern)} {shlex.quote(where)} "
-           f"| head -50")
+    # pipefail：管道退出码默认取尾端命令的，恒为0，会把 grep 的"正则非法"吞成
+    # [no matches]，模型据此以为仓库里没这东西、继续往错方向探索。
+    # 截断用 sed 不用 head：head 读够就关管道，grep 收到 SIGPIPE 退出141，
+    # pipefail 下会把"匹配太多"误报成错误(输出越大越容易触发)。sed 读完整个流。
+    cmd = (f"set -o pipefail; grep -rn -E --include='*.py' {shlex.quote(pattern)} "
+           f"{shlex.quote(where)} | sed -n '1,50p'")
     code, out, err = ctr.exec(cmd)
     if code > 1:
-        return f"[error] {err.strip()}"
+        return f"[error] {err.strip() or f'grep exit={code}'}"
     return out.replace(config.TESTBED + "/", "") if out.strip() else "[no matches]"
 
 
