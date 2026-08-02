@@ -14,9 +14,10 @@ import config
 def traj_end(iid: str) -> dict:
     """轨迹末行的end事件；缺轨迹/被截断则返回空dict（列留空，不编数字）。"""
     p = config.TRAJ_DIR / f"{iid}.jsonl"
-    if not p.exists():
+    lines = p.read_text().splitlines() if p.exists() else []
+    if not lines:      # 被SIGKILL的例可能留下0字节轨迹
         return {}
-    last = json.loads(p.read_text().splitlines()[-1])
+    last = json.loads(lines[-1])
     return last if last.get("event") == "end" else {}
 
 
@@ -24,6 +25,8 @@ def main() -> None:
     tag = sys.argv[1] if len(sys.argv) > 1 else sys.exit("usage: python -m eval.summarize <tag>")
     preds = [json.loads(l) for l in
              (config.LOGS / f"predictions_{tag}.jsonl").read_text().splitlines() if l.strip()]
+    if not preds:
+        sys.exit(f"predictions_{tag}.jsonl 里没有任何预测，无表可汇总")
     reports = glob.glob(str(config.LOGS / "reports" / f"*.{tag}.json"))
     if len(reports) != 1:
         sys.exit(f"expect exactly 1 report for tag={tag}, got {reports}")
@@ -58,9 +61,10 @@ def main() -> None:
     n, nres = len(rows), sum(r["resolved"] for r in rows)
     usd = sum(r["usd"] or 0 for r in rows)
     turns = [r["turns"] for r in rows if r["turns"] != ""]
+    avg_turns = f"{sum(turns) / len(turns):.1f}" if turns else "n/a(无完整轨迹)"
     print(f"{out}  ({n} rows)")
     print(f"resolved: {nres}/{n} = {nres / n:.0%}   total_usd(累计口径): ${usd:.4f}   "
-          f"avg_turns: {sum(turns) / len(turns):.1f}")
+          f"avg_turns: {avg_turns}")
     print(f"stop_reason: {dict(Counter(r['stop_reason'] for r in rows))}")
     print(f"resolved_by_stop: "
           f"{dict(Counter(r['stop_reason'] for r in rows if r['resolved']))}")

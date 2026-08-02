@@ -15,7 +15,6 @@ from concurrent.futures import ThreadPoolExecutor
 
 import config
 from agent import tools
-from runner.run_one import load_env
 
 BATCH_LOG_DIR = config.LOGS / "batch"
 
@@ -85,7 +84,6 @@ def main() -> None:
     ap.add_argument("--keep-images", action="store_true", help="跑完不删eval镜像（默认删，防爆盘）")
     ap.add_argument("--mock", action="store_true", help="透传run_one --mock，零API费联调编排层")
     args = ap.parse_args()
-    load_env()
 
     manifest = json.loads((config.ROOT / "eval" / "instances_50.json").read_text())
     ids = args.ids or (manifest["smoke"] if args.smoke
@@ -124,10 +122,13 @@ def main() -> None:
     # 合并本id集合的全部预测为单文件，直接喂judge.sh
     rows = [(config.PRED_DIR / f"{i}.jsonl").read_text().strip()
             for i in ids if (config.PRED_DIR / f"{i}.jsonl").exists()]
+    print(f"\n==== batch done in {(time.time() - t0) / 60:.1f}min ====")
+    if not rows:  # 别写一个只含换行的predictions，那会让judge.sh拿到空instance_ids
+        print(f"statuses: {dict(Counter(statuses.values()))}")
+        sys.exit("零预测产出：全部实例超时或崩溃，检查 logs/batch/*.log")
     merged = config.LOGS / f"predictions_{args.tag}.jsonl"
     merged.write_text("\n".join(rows) + "\n")
 
-    print(f"\n==== batch done in {(time.time() - t0) / 60:.1f}min ====")
     print(f"statuses: {dict(Counter(statuses.values()))} (skipped-as-done: {len(ids) - len(todo)})")
     print(f"batch cost: ${_total_cost()['total_usd'] - cost0:.4f}  "
           f"project total: ${_total_cost()['total_usd']:.4f}")
