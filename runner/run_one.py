@@ -4,7 +4,6 @@
 # 用judge.sh判卷来验证"工具链→patch→判卷"全链路正确。
 import argparse
 import json
-import os
 import subprocess
 import sys
 import time
@@ -33,15 +32,6 @@ MOCK_SCRIPT = [
 ]
 
 
-def load_env() -> None:
-    p = config.ROOT / ".env"
-    if p.exists():
-        for line in p.read_text().splitlines():
-            if "=" in line and not line.strip().startswith("#"):
-                k, v = line.split("=", 1)
-                os.environ.setdefault(k.strip(), v.strip())
-
-
 def ensure_image(instance_id: str) -> None:
     img = tools.image_of(instance_id)
     if subprocess.run(["docker", "image", "inspect", img], capture_output=True).returncode:
@@ -57,7 +47,6 @@ def main() -> None:
 
     if args.mock and args.instance != MOCK_INSTANCE:
         sys.exit(f"--mock 剧本只适配 {MOCK_INSTANCE}")
-    load_env()
 
     ds = load_dataset(config.DATASET, split="test")
     row = next((r for r in ds if r["instance_id"] == args.instance), None)
