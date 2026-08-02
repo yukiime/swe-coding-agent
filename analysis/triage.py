@@ -52,8 +52,18 @@ def gold_files(row: dict | None) -> list[str]:
     return re.findall(r"^diff --git a/\S+ b/(\S+)", row["patch"], re.M)
 
 
-def load_traj(iid: str) -> list[dict]:
-    p = config.TRAJ_DIR / f"{iid}.jsonl"
+def traj_dir(tag: str) -> Path:
+    """归档目录 logs/trajs_<tag>。找不到就退出，绝不回退到工作目录 logs/trajs：
+    runner 每跑一次都覆写 logs/trajs，静默回退会拿最新一轮的轨迹去归因旧 tag，
+    错得毫无痕迹。跑完一轮请先 `cp -R logs/trajs logs/trajs_<tag>` 归档。"""
+    d = config.LOGS / f"trajs_{tag}"
+    if not d.is_dir():
+        sys.exit(f"缺少归档轨迹目录 {d}；请先归档: cp -R {config.TRAJ_DIR} {d}")
+    return d
+
+
+def load_traj(iid: str, tag: str) -> list[dict]:
+    p = traj_dir(tag) / f"{iid}.jsonl"
     return [json.loads(l) for l in p.read_text().splitlines() if l.strip()]
 
 
@@ -162,8 +172,9 @@ def signals(traj: list[dict], gold: list[str]) -> dict:
 def classify(sig: dict, patch_chars: int, judged: dict | None, has_gold: bool) -> tuple[str, str]:
     """返回(类别key, 一句话证据)。有patch信官方judge事实，空patch看行为信号。"""
     if patch_chars > 0 and judged:
-        p2p_fail = judged["tests_status"]["PASS_TO_PASS"]["failure"]
-        f2p_fail = judged["tests_status"]["FAIL_TO_PASS"]["failure"]
+        # tests_status[*]["success"/"failure"] 是测试名列表, 不是计数, 取len才是例数
+        p2p_fail = len(judged["tests_status"]["PASS_TO_PASS"]["failure"])
+        f2p_fail = len(judged["tests_status"]["FAIL_TO_PASS"]["failure"])
         if not judged["patch_successfully_applied"]:
             return "patch_apply_failed", "harness: patch应用失败"
         if p2p_fail:
@@ -199,7 +210,7 @@ def cmd_triage(tag: str) -> None:
     rows = []
     for iid in unresolved:
         gold = gold_files(data.get(iid))
-        sig = signals(load_traj(iid), gold)
+        sig = signals(load_traj(iid, tag), gold)
         cat, why = classify(sig, len(preds[iid]), inst_report(tag, iid), bool(gold))
         rows.append({"instance_id": iid, "category": cat, "patch_chars": len(preds[iid]),
                      "evidence": why, **sig, "gold_files": ";".join(gold)})
@@ -233,7 +244,7 @@ def _fence(text: str, lang: str = "") -> str:
 
 
 def render_one(iid: str, tag: str, preds: dict, data: dict, resolved_ids: set) -> Path:
-    traj = load_traj(iid)
+    traj = load_traj(iid, tag)
     end = traj[-1] if traj[-1].get("event") == "end" else {}
     row = data.get(iid)
     judged = inst_report(tag, iid)
@@ -245,8 +256,10 @@ def render_one(iid: str, tag: str, preds: dict, data: dict, resolved_ids: set) -
     if judged:
         ts = judged["tests_status"]
         md.append(f"- harness: applied={judged['patch_successfully_applied']}  "
-                  f"FAIL_TO_PASS {ts['FAIL_TO_PASS']['success']}✓/{ts['FAIL_TO_PASS']['failure']}✗  "
-                  f"PASS_TO_PASS {ts['PASS_TO_PASS']['success']}✓/{ts['PASS_TO_PASS']['failure']}✗")
+                  f"FAIL_TO_PASS {len(ts['FAIL_TO_PASS']['success'])}✓/"
+                  f"{len(ts['FAIL_TO_PASS']['failure'])}✗  "
+                  f"PASS_TO_PASS {len(ts['PASS_TO_PASS']['success'])}✓/"
+                  f"{len(ts['PASS_TO_PASS']['failure'])}✗")
     md.append("\n## 问题原文 (issue)\n")
     md.append(_fence(row["problem_statement"]) if row else "_(HF数据集不可用，缺问题原文)_")
     md.append("\n## 轨迹\n")
