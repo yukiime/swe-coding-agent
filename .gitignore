@@ -11,11 +11,14 @@ __pycache__/
 *.pyc
 .DS_Store
 
-# documentation
+# documentation & personal
+resume.md
 PLAN.md
 CLAUDE.md
 PROMPTS.md
 MYNOTES.md
+WALKTHROUGH.md
 experiments.md
 analysis/review_guide.md
 analysis/phase4_candidates.md
+docs/superpowers/plans/

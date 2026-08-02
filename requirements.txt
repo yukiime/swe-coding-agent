@@ -5,3 +5,6 @@ swebench==4.1.0
 requests==2.34.2
 rich==15.0.0
 tqdm==4.68.4
+
+# 开发依赖（跑测试用；运行 agent 不需要）
+pytest==9.1.1
