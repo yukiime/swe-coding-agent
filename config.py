@@ -2,10 +2,26 @@
 # 只改这个文件。供应商以"档案"共存，切换=改 ACTIVE_PROFILE 一行(或设环境变量
 # SWE_PROFILE)，价格随档案走：记账/熔断依赖单价，换端点忘改价格会把账记错。
 # 价格按 cache-miss 单价保守计费：宁可高估成本提前熔断，不可少算超支。
+# .env 在本模块导入时就加载：档案里的 base_url/SWE_PROFILE 是在导入期求值的，
+# 若等调用方再 load 就已经晚了(曾导致 SWE_PROFILE=ali 时 base_url 静默为空串)。
 import os
 from pathlib import Path
 
 ROOT = Path(__file__).parent
+
+
+def load_env() -> None:
+    """.env -> os.environ（已存在的真实环境变量优先）。"""
+    p = ROOT / ".env"
+    if not p.exists():
+        return
+    for line in p.read_text().splitlines():
+        if "=" in line and not line.strip().startswith("#"):
+            k, v = line.split("=", 1)
+            os.environ.setdefault(k.strip(), v.strip())
+
+
+load_env()
 
 # --- LLM 供应商档案（任何 OpenAI 兼容端点都能当一个档案）---
 PROFILES = {
@@ -56,6 +72,10 @@ PRICE_IN_PER_M = _p["price_in_per_m"]
 PRICE_OUT_PER_M = _p["price_out_per_m"]
 assert PRICE_IN_PER_M is not None and PRICE_OUT_PER_M is not None, \
     f"档案 {ACTIVE_PROFILE} 未填单价, 记账会失真, 拒绝启动"
+# 空 base_url 不会让 OpenAI 客户端报错(client.base_url 就是空串), 要等发请求才炸,
+# 且报错信息与"端点没配"毫无关系。在这里拦掉。
+assert BASE_URL and "REPLACE-ME" not in BASE_URL, \
+    f"档案 {ACTIVE_PROFILE} 的 base_url 为空或未替换占位符 (从 .env 读的键请确认已填), 拒绝启动"
 
 # --- LLM 通用参数 ---
 TEMPERATURE = 0.0
