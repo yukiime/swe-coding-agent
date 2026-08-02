@@ -25,8 +25,9 @@ class CostLedger:
     批量并发时多个run_one进程共写同一账本：记账在文件独占锁内"重读→累加→原子写回"，
     否则各进程的内存副本互相覆盖会把账记少——记少=总额熔断可能被绕过。"""
 
-    def __init__(self, path=config.COST_PATH):
-        self.path = path
+    def __init__(self, path=None):
+        # 晚绑定：写成 path=config.COST_PATH 会在导入期定死，测试沙箱与将来换路径都改不动
+        self.path = path or config.COST_PATH
         self.data = self._load()
 
     def _load(self) -> dict:
