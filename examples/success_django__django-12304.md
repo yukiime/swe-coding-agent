@@ -8,9 +8,9 @@
 ````
 Enumeration Types are not usable in templates.
 Description
-	 
+
 		(last modified by Mariusz Felisiak)
-	 
+
 The new ​enumeration types are great but can't be used in Django templates due to their being callable. For example this doesn't work:
 {% if student.year_in_school == YearInSchool.FRESHMAN %}
 This is because YearInSchool, being a class, is callable, and Django Templates always call callables with no arguments. The call fails because the required value argument is missing.
@@ -52,15 +52,15 @@ django/db/models/fields/related_descriptors.py:862:        do_not_call_in_templa
 
 ````
      1	import enum
-     2	
+     2
      3	from django.utils.functional import Promise
-     4	
+     4
      5	__all__ = ['Choices', 'IntegerChoices', 'TextChoices']
-     6	
-     7	
+     6
+     7
      8	class ChoicesMeta(enum.EnumMeta):
      9	    """A metaclass for creating a enum choices."""
-    10	
+    10
     11	    def __new__(metacls, classname, bases, classdict):
     12	        labels = []
     13	        for key in classdict._member_names:
@@ -183,15 +183,15 @@ The issue is that `do_not_call_in_templates = True` is being treated as an enum 
 
 ````
      1	import enum
-     2	
+     2
      3	from django.utils.functional import Promise
-     4	
+     4
      5	__all__ = ['Choices', 'IntegerChoices', 'TextChoices']
-     6	
-     7	
+     6
+     7
      8	class ChoicesMeta(enum.EnumMeta):
      9	    """A metaclass for creating a enum choices."""
-    10	
+    10
     11	    def __new__(metacls, classname, bases, classdict):
     12	        labels = []
     13	        for key in classdict._member_names:
@@ -278,15 +278,15 @@ tests/template_tests/test_callables.py:104:            do_not_call_in_templates 
 
 ````
      1	import enum
-     2	
+     2
      3	from django.utils.functional import Promise
-     4	
+     4
      5	__all__ = ['Choices', 'IntegerChoices', 'TextChoices']
-     6	
-     7	
+     6
+     7
      8	class ChoicesMeta(enum.EnumMeta):
      9	    """A metaclass for creating a enum choices."""
-    10	
+    10
     11	    def __new__(metacls, classname, bases, classdict):
     12	        labels = []
     13	        for key in classdict._member_names:
@@ -321,7 +321,7 @@ index f48143ddaf..51821a2b45 100644
          cls.label = property(lambda self: cls._value2label_map_.get(self.value))
 +        cls.do_not_call_in_templates = True
          return enum.unique(cls)
- 
+
      def __contains__(cls, member):
 ````
 
@@ -337,6 +337,6 @@ diff --git a/django/db/models/enums.py b/django/db/models/enums.py
          cls.label = property(lambda self: cls._value2label_map_.get(self.value))
 +        cls.do_not_call_in_templates = True
          return enum.unique(cls)
- 
+
      def __contains__(cls, member):
 ````

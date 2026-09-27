@@ -19,7 +19,7 @@ like this:
    :maxdepth: 1
    :caption: Indices and tables
 
-   genindex 
+   genindex
    modindex
    search
 ```
@@ -48,7 +48,7 @@ The following directive should be possible and do not rise errors:
    :maxdepth: 1
    :caption: Indices and tables
 
-   genindex 
+   genindex
    modindex
    search
 ``
@@ -119,7 +119,7 @@ s
 
 ````
    585	    }
-   586	
+   586
    587	    initial_data = {
    588	        'progoptions': {},      # (program, name) -> docname, labelid
    589	        'objects': {},          # (type, name) -> docname, labelid
@@ -162,15 +162,15 @@ sphinx/bui
 🔧 **read_file** `{"path": "/testbed/sphinx/environment/__init__.py", "start_line": 345, "end_line": 360}`
 
 ````
-   345	
+   345
    346	        return (canon_path(path.normpath(rel_fn)),
    347	                path.normpath(path.join(self.srcdir, rel_fn)))
-   348	
+   348
    349	    @property
    350	    def found_docs(self) -> Set[str]:
    351	        """contains all existing docnames."""
    352	        return self.project.docnames
-   353	
+   353
    354	    def find_files(self, config: Config, builder: "Builder") -> None:
    355	        """Find all source files in the source dir and put them in
    356	        self.found_docs.
@@ -182,7 +182,7 @@ sphinx/bui
 
 The fix should be in the toctree resolution code. When checking if a document exists, we should also check if it's one of these special "virtual" documents. Let me look at both places where the warning is generated:
 
-1. `sphinx/directives/other.py` 
+1. `sphinx/directives/other.py`
 
 🔧 **code_search** `{"pattern": "special.*doc|virtual.*doc|genindex.*search.*modindex", "path": "/testbed/sphinx"}`
 
@@ -274,12 +274,12 @@ sphinx/directives/other.py:121:                elif docname not in self.env.foun
    711	        for pagename, template in self.config.html_additional_pages.items():
    712	            logger.info(pagename + ' ', nonl=True)
    713	            self.handle_page(pagename, {}, template)
-   714	
+   714
    715	        # the search page
    716	        if self.search:
    717	            logger.info('search ', nonl=True)
    718	            self.handle_page('search', {}, 'search.html')
-   719	
+   719
    720	        # the opensearch xml file
    721
 ````
@@ -296,7 +296,7 @@ sphinx/directives/other.py:121:                elif docname not in self.env.foun
 
 ````
      1	"""Builder superclass for all builders."""
-     2	
+     2
      3	import codecs
      4	import pickle
      5	import time
@@ -304,10 +304,10 @@ sphinx/directives/other.py:121:                elif docname not in self.env.foun
      7	from os import path
      8	from typing import (TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Sequence, Set, Tuple,
      9	                    Type, Union)
-    10	
+    10
     11	from docutils import nodes
     12	from docutils.nodes import Node
-    13	
+    13
     14	from sphinx.config import Config
     15	from sphinx.deprecation import RemovedInSphinx70Warnin
 ````
@@ -331,7 +331,7 @@ sphinx/directives/other.py:121:                elif docname not in self.env.foun
    583	        # links to documents
    584	        'doc':     XRefRole(warn_dangling=True, innernodeclass=nodes.inline),
    585	    }
-   586	
+   586
    587	    initial_data = {
    588	        'progoptions': {},      # (program, name) -> docname, labelid
    589	        'objects': {},          # (type, name) -> docname, labelid
@@ -388,10 +388,10 @@ sphinx/directives/other.py:121:                elif docname not in self.env.foun
 
 ````
     50	INVENTORY_FILENAME = 'objects.inv'
-    51	
+    51
     52	logger = logging.getLogger(__name__)
     53	return_codes_re = re.compile('[\r\n]+')
-    54	
+    54
     55	DOMAIN_INDEX_TYPE = Tuple[
     56	    # Index name (e.g. py-modindex)
     57	    str,
@@ -402,7 +402,7 @@ sphinx/directives/other.py:121:                elif docname not in self.env.foun
     62	    # whether sub-entries should start collapsed
     63	    bool
     64	]
-    65	
+    65
     6
 ````
 
@@ -428,7 +428,7 @@ sphinx/builders/html/__init__.py:524:        for in
     48	    """
     49	    Builds target formats from the reST sources.
     50	    """
-    51	
+    51
     52	    #: The builder's name, for the -b command line option.
     53	    name = ''
     54	    #: The builder's output format, or '' if no document output is produced.
@@ -489,10 +489,10 @@ From the code I already read, t
    342	            docdir = path.dirname(self.doc2path(docname or self.docname,
    343	                                                base=False))
    344	            rel_fn = path.join(docdir, filename)
-   345	
+   345
    346	        return (canon_path(path.normpath(rel_fn)),
    347	                path.normpath(path.join(self.srcdir, rel_fn)))
-   348	
+   348
    349	    @property
    350	    def found_docs(self) -> Set[str]:
    351	        """contai
@@ -515,16 +515,16 @@ diff --git a/sphinx/directives/other.py b/sphinx/directives/other.py
 +++ b/sphinx/directives/other.py
 @@ -77,10 +77,11 @@ def run(self) -> List[Node]:
          return ret
- 
+
      def parse_content(self, toctree: addnodes.toctree) -> List[Node]:
 +        generated_docnames = frozenset(self.env.domains['std'].initial_data['labels'].keys())
          suffixes = self.config.source_suffix
- 
+
          # glob target documents
 -        all_docnames = self.env.found_docs.copy()
 +        all_docnames = self.env.found_docs.copy() | generated_docnames
          all_docnames.remove(self.env.docname)  # remove current document
- 
+
          ret: List[Node] = []
 @@ -95,6 +96,9 @@ def parse_content(self, toctree: addnodes.toctree) -> List[Node]:
                  patname = docname_join(self.env.docname, entry)
@@ -550,10 +550,10 @@ diff --git a/sphinx/environment/adapters/toctree.py b/sphinx/environment/adapter
 +++ b/sphinx/environment/adapters/toctree.py
 @@ -1,6 +1,6 @@
  """Toctree adapter for sphinx.environment."""
- 
+
 -from typing import TYPE_CHECKING, Any, Iterable, List, Optional, cast
 +from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Tuple, cast
- 
+
  from docutils import nodes
  from docutils.nodes import Element, Node
 @@ -54,6 +54,7 @@ def resolve(self, docname: str, builder: "Builder", toctree: addnodes.toctree,
@@ -561,7 +561,7 @@ diff --git a/sphinx/environment/adapters/toctree.py b/sphinx/environment/adapter
          if toctree.get('hidden', False) and not includehidden:
              return None
 +        generated_docnames: Dict[str, Tuple[str, str, str]] = self.env.domains['std'].initial_data['labels'].copy()  # NoQA: E501
- 
+
          # For reading the following two helper function, it is useful to keep
          # in mind the node structure of a toctree (using HTML-like node names
 @@ -139,6 +140,16 @@ def _entries_from_toctree(toctreenode: addnodes.toctree, parents: List[str],
@@ -585,16 +585,16 @@ diff --git a/sphinx/environment/collectors/toctree.py b/sphinx/environment/colle
 --- a/sphinx/environment/collectors/toctree.py
 +++ b/sphinx/environment/collectors/toctree.py
 @@ -201,6 +201,7 @@ def _walk_toctree(toctreenode: addnodes.toctree, depth: int) -> None:
- 
+
      def assign_figure_numbers(self, env: BuildEnvironment) -> List[str]:
          """Assign a figure number to each figure under a numbered toctree."""
 +        generated_docnames = frozenset(env.domains['std'].initial_data['labels'].keys())
- 
+
          rewrite_needed = []
- 
+
 @@ -247,6 +248,7 @@ def register_fignumber(docname: str, secnum: Tuple[int, ...],
              fignumbers[figure_id] = get_next_fignumber(figtype, secnum)
- 
+
          def _walk_doctree(docname: str, doctree: Element, secnum: Tuple[int, ...]) -> None:
 +            nonlocal generated_docnames
              for subnode in doctree.children:
@@ -607,7 +607,7 @@ diff --git a/sphinx/environment/collectors/toctree.py b/sphinx/environment/colle
 +                        if subdocname in generated_docnames:
 +                            # or these
 +                            continue
- 
+
                          _walk_doc(subdocname, secnum)
                  elif isinstance(subnode, nodes.Element):
 ````

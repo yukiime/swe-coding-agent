@@ -5,6 +5,7 @@
 # run artifacts (trajectories, cost ledger, harness output)
 logs/
 *.jsonl
+!results/*.jsonl
 
 # python
 __pycache__/
@@ -12,7 +13,12 @@ __pycache__/
 .DS_Store
 
 # documentation & personal
+AGENTS.md
+.agents/
+.codex/
+.claude/
 resume.md
+PUBLICATION_REVIEW.md
 PLAN.md
 CLAUDE.md
 PROMPTS.md
@@ -21,4 +27,4 @@ WALKTHROUGH.md
 experiments.md
 analysis/review_guide.md
 analysis/phase4_candidates.md
-docs/superpowers/plans/
+docs/
